@@ -7,3 +7,5 @@ allure_report/
 .vscode/
 *.pyc
 *.log
+# Allure
+allure-results/

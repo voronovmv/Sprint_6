@@ -4,9 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 
 from pages.base_page import BasePage
-
-
-BASE_URL = "https://qa-scooter.praktikum-services.ru/"
+from utils.constants import BASE_URL
 
 
 @pytest.fixture

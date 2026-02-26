@@ -1,18 +1,19 @@
-import time
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, StaleElementReferenceException
+from selenium.common.exceptions import (
+    TimeoutException,
+    ElementClickInterceptedException,
+    StaleElementReferenceException,
+)
+
+from locators import base_page_locators as loc
 
 
 class BasePage:
-    COOKIE_BANNER = (By.CLASS_NAME, "App_CookieConsent__1yUIN")
-    COOKIE_BUTTON = (By.ID, "rcc-confirm-button")
-
     def __init__(self, driver, timeout: int = 10):
         self.driver = driver
-        self.wait = WebDriverWait(driver, timeout)
+        self.wait = WebDriverWait(driver, timeout, poll_frequency=0.2)
 
     def wait_for_visibility(self, locator):
         return self.wait.until(EC.visibility_of_element_located(locator))
@@ -28,25 +29,22 @@ class BasePage:
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
         return el
 
-    def click_safe(self, locator, retries: int = 3):
-        last_exc = None
-        for _ in range(retries):
+    def click_safe(self, locator):
+        self.scroll_to(locator)
+
+        def _try_click(driver):
             try:
-                el = self.scroll_to(locator)
-                self.wait_for_clickable(locator).click()
-                return
-            except (ElementClickInterceptedException, StaleElementReferenceException) as exc:
-                last_exc = exc
-                time.sleep(0.2)
-            except Exception as exc:
-                last_exc = exc
+                el = driver.find_element(*locator)
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
                 try:
-                    el = self.scroll_to(locator)
-                    self.driver.execute_script("arguments[0].click();", el)
-                    return
-                except Exception:
-                    time.sleep(0.2)
-        raise last_exc
+                    el.click()
+                except ElementClickInterceptedException:
+                    driver.execute_script("arguments[0].click();", el)
+                return True
+            except (ElementClickInterceptedException, StaleElementReferenceException):
+                return False
+
+        self.wait.until(lambda d: _try_click(d))
 
     def type_text(self, locator, text: str, clear: bool = True):
         el = self.wait_for_visibility(locator)
@@ -68,16 +66,27 @@ class BasePage:
     def wait_for_windows(self, count: int):
         return self.wait.until(EC.number_of_windows_to_be(count))
 
+    def switch_to_window(self, index: int):
+        self.driver.switch_to.window(self.driver.window_handles[index])
+
     def wait_url_not_blank(self):
         def _predicate(driver):
             return driver.current_url and driver.current_url != "about:blank"
 
         return self.wait.until(_predicate)
 
+    def wait_url_contains(self, part: str):
+        return self.wait.until(EC.url_contains(part))
+
+    def current_url(self) -> str:
+        return self.driver.current_url
+
     def accept_cookies_if_present(self):
         try:
-            banner = WebDriverWait(self.driver, 2).until(EC.presence_of_element_located(self.COOKIE_BANNER))
+            banner = WebDriverWait(self.driver, 2, poll_frequency=0.2).until(
+                EC.presence_of_element_located(loc.COOKIE_BANNER)
+            )
             if banner.is_displayed():
-                self.driver.find_element(*self.COOKIE_BUTTON).click()
+                self.driver.find_element(*loc.COOKIE_BUTTON).click()
         except TimeoutException:
             return

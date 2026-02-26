@@ -1,8 +1,7 @@
 import allure
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 
 from pages.main_page import MainPage
+from utils.constants import BASE_URL, DZEN_PART
 
 
 @allure.feature("Navigation")
@@ -14,7 +13,7 @@ def test_scooter_logo_opens_main(driver):
     header = page.header()
 
     header.click_scooter_logo()
-    assert driver.current_url == "https://qa-scooter.praktikum-services.ru/"
+    assert header.current_url() == BASE_URL
 
 
 @allure.feature("Navigation")
@@ -25,12 +24,5 @@ def test_yandex_logo_opens_dzen_in_new_window(driver):
     page = MainPage(driver)
     header = page.header()
 
-    header.click_yandex_logo()
-
-    page.wait_for_windows(2)
-    driver.switch_to.window(driver.window_handles[1])
-
-    page.wait_url_not_blank()
-    WebDriverWait(driver, 10).until(EC.url_contains("dzen"))
-
-    assert "dzen" in driver.current_url
+    url = header.open_dzen_and_get_url(DZEN_PART)
+    assert DZEN_PART in url
